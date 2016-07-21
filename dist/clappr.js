@@ -4382,14 +4382,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	        v,
 	        y = 0,
 	        x = 0;"MSGesture" in window && (f = new MSGesture(), f.target = document.body), t(document).bind("MSGestureEnd", function (t) {
-	      var e = t.velocityX > 1 ? "Right" : t.velocityX < -1 ? "Left" : t.velocityY > 1 ? "Down" : t.velocityY < -1 ? "Up" : null;e && (h.el.trigger("swipe"), h.el.trigger("swipe" + e));
+	      var e = t.velocityX > 1 ? "Right" : t.velocityX < -1 ? "Left" : t.velocityY > 1 ? "Down" : t.velocityY < -1 ? "Up" : null;e && h.el && h.el.trigger && (h.el.trigger("swipe"), h.el.trigger("swipe" + e));
 	    }).on("touchstart MSPointerDown pointerdown", function (e) {
 	      (!(v = s(e, "down")) || o(e)) && (g = v ? e : e.touches[0], e.touches && 1 === e.touches.length && h.x2 && (h.x2 = void 0, h.y2 = void 0), d = Date.now(), m = d - (h.last || d), h.el = t("tagName" in g.target ? g.target : g.target.parentNode), a && clearTimeout(a), h.x1 = g.pageX, h.y1 = g.pageY, m > 0 && 250 >= m && (h.isDoubleTap = !0), h.last = d, l = setTimeout(n, p), f && v && f.addPointer(e.pointerId));
 	    }).on("touchmove MSPointerMove pointermove", function (t) {
 	      (!(v = s(t, "move")) || o(t)) && (g = v ? t : t.touches[0], r(), h.x2 = g.pageX, h.y2 = g.pageY, y += Math.abs(h.x1 - h.x2), x += Math.abs(h.y1 - h.y2));
 	    }).on("touchend MSPointerUp pointerup", function (n) {
 	      (!(v = s(n, "up")) || o(n)) && (r(), h.x2 && Math.abs(h.x1 - h.x2) > 30 || h.y2 && Math.abs(h.y1 - h.y2) > 30 ? c = setTimeout(function () {
-	        h.el.trigger("swipe"), h.el.trigger("swipe" + e(h.x1, h.x2, h.y1, h.y2)), h = {};
+	        h.el && h.el.trigger && (h.el.trigger("swipe"), h.el.trigger("swipe" + e(h.x1, h.x2, h.y1, h.y2)), h = {});
 	      }, 0) : "last" in h && (30 > y && 30 > x ? u = setTimeout(function () {
 	        var e = t.Event("tap");e.cancelTouch = i, h.el && h.el.trigger(e), h.isDoubleTap ? (h.el && h.el.trigger("doubleTap"), h = {}) : a = setTimeout(function () {
 	          a = null, h.el && h.el.trigger("singleTap"), h = {};
