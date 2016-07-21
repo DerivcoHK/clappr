@@ -909,6 +909,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.isNumber = isNumber;
 	exports.currentScriptUrl = currentScriptUrl;
 	exports.getBrowserLanguage = getBrowserLanguage;
+	exports.removeArrayItem = removeArrayItem;
 
 	var _browser = __webpack_require__(3);
 
@@ -1017,6 +1018,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    } else if (document.msExitFullscreen) {
 	      document.msExitFullscreen();
 	    }
+	  },
+	  fullscreenEnabled: function fullscreenEnabled() {
+	    return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
 	  }
 	};
 
@@ -1161,6 +1165,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return window.navigator && window.navigator.language;
 	}
 
+	// remove the item from the array if it exists in the array
+	function removeArrayItem(arr, item) {
+	  var i = arr.indexOf(item);
+	  if (i >= 0) {
+	    arr.splice(i, 1);
+	  }
+	}
+
 	exports.default = {
 	  Config: Config,
 	  Fullscreen: Fullscreen,
@@ -1173,7 +1185,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  isNumber: isNumber,
 	  requestAnimationFrame: requestAnimationFrame,
 	  cancelAnimationFrame: cancelAnimationFrame,
-	  getBrowserLanguage: getBrowserLanguage
+	  getBrowserLanguage: getBrowserLanguage,
+	  removeArrayItem: removeArrayItem
 	};
 
 /***/ },
@@ -1710,14 +1723,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Fired when the playback is downloading the media
 	 *
 	 * @event PLAYBACK_PROGRESS
-	 * @param {Object} progress Data
-	 * progress object
-	 * @param {Number} [progress.start]
-	 * initial downloaded content
-	 * @param {Number} [progress.current]
-	 * current dowloaded content
-	 * @param {Number} [progress.total]
+	 * @param progress {Object}
+	 * Data progress object
+	 * @param [progress.start] {Number}
+	 * start position of buffered content at current position
+	 * @param [progress.current] {Number}
+	 * end position of buffered content at current position
+	 * @param [progress.total] {Number}
 	 * total content to be downloaded
+	 * @param buffered {Array}
+	 * array of buffered segments ({start, end}). [Only for supported playbacks]
 	 */
 	Events.PLAYBACK_PROGRESS = 'playback:progress';
 	/**
@@ -6515,8 +6530,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    this.trigger(_events2.default.CONTAINER_TIMEUPDATE, timeProgress, this.name);
 	  };
 
-	  Container.prototype.progress = function progress(progressObj) {
-	    this.trigger(_events2.default.CONTAINER_PROGRESS, progressObj, this.name);
+	  Container.prototype.progress = function progress() {
+	    for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+	      args[_key] = arguments[_key];
+	    }
+
+	    this.trigger.apply(this, [_events2.default.CONTAINER_PROGRESS].concat(args, [this.name]));
 	  };
 
 	  Container.prototype.playing = function playing() {
@@ -10377,9 +10396,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	  };
 
 	  MediaControl.prototype.settingsUpdate = function settingsUpdate() {
-	    var settingsChanged = JSON.stringify(this.settings) !== JSON.stringify(this.container.settings);
+	    var newSettings = _clapprZepto2.default.extend({}, this.container.settings);
+	    if (newSettings && !_utils.Fullscreen.fullscreenEnabled()) {
+	      // remove fullscreen from settings if it is present
+	      newSettings.default && (0, _utils.removeArrayItem)(newSettings.default, 'fullscreen');
+	      newSettings.left && (0, _utils.removeArrayItem)(newSettings.left, 'fullscreen');
+	      newSettings.right && (0, _utils.removeArrayItem)(newSettings.right, 'fullscreen');
+	    }
+	    var settingsChanged = JSON.stringify(this.settings) !== JSON.stringify(newSettings);
 	    if (this.container.getPlaybackType() && settingsChanged) {
-	      this.settings = _clapprZepto2.default.extend({}, this.container.settings);
+	      this.settings = newSettings;
 	      this.render();
 	    }
 	  };
@@ -12668,6 +12694,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+	function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
@@ -12803,7 +12831,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    _clapprZepto2.default.extend(_this.el, {
 	      loop: _this.options.loop,
-	      autoplay: _this.options.autoPlay,
 	      poster: _this.options.poster,
 	      preload: preload || 'metadata',
 	      controls: (playbackConfig.controls || _this.options.useVideoTagDefaultControls) && 'controls',
@@ -12816,6 +12843,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	    _this.settings = { default: ['seekbar'] };
 	    _this.settings.left = ['playpause', 'position', 'duration'];
 	    _this.settings.right = ['fullscreen', 'volume', 'hd-indicator'];
+
+	    // https://github.com/clappr/clappr/issues/1076
+	    _this.options.autoPlay && _this.play();
 	    return _this;
 	  }
 
@@ -13060,18 +13090,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (!this.el.buffered.length) {
 	      return;
 	    }
+	    var buffered = [];
 	    var bufferedPos = 0;
 	    for (var i = 0; i < this.el.buffered.length; i++) {
-	      if (this.el.currentTime >= this.el.buffered.start(i) && this.el.currentTime <= this.el.buffered.end(i)) {
+	      buffered = [].concat(_toConsumableArray(buffered), [{ start: this.el.buffered.start(i), end: this.el.buffered.end(i) }]);
+	      if (this.el.currentTime >= buffered[i].start && this.el.currentTime <= buffered[i].end) {
 	        bufferedPos = i;
-	        break;
 	      }
 	    }
-	    this.trigger(_events2.default.PLAYBACK_PROGRESS, {
-	      start: this.el.buffered.start(bufferedPos),
-	      current: this.el.buffered.end(bufferedPos),
+	    var progress = {
+	      start: buffered[bufferedPos].start,
+	      current: buffered[bufferedPos].end,
 	      total: this.el.duration
-	    });
+	    };
+	    this.trigger(_events2.default.PLAYBACK_PROGRESS, progress, buffered);
 	  };
 
 	  HTML5Video.prototype._typeFor = function _typeFor(src) {
@@ -14740,6 +14772,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+	function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
@@ -14808,7 +14842,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // when this is false playableRegionDuration will be the actual duration
 	    // when this is true playableRegionDuration will exclude the time after the sync point
 	    _this._durationExcludesAfterLiveSyncPoint = false;
-	    _this.options.autoPlay && _this._setupHls();
 	    _this._recoverAttemptsRemaining = _this.options.hlsRecoverAttempts || 16;
 	    return _this;
 	  }
@@ -14958,19 +14991,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (!this.el.buffered.length) {
 	      return;
 	    }
+	    var buffered = [];
 	    var bufferedPos = 0;
 	    for (var i = 0; i < this.el.buffered.length; i++) {
-	      if (this.el.currentTime >= this.el.buffered.start(i) && this.el.currentTime <= this.el.buffered.end(i)) {
+	      buffered = [].concat(_toConsumableArray(buffered), [{
+	        // for a stream with sliding window dvr something that is buffered my slide off the start of the timeline
+	        start: Math.max(0, this.el.buffered.start(i) - this._playableRegionStartTime),
+	        end: Math.max(0, this.el.buffered.end(i) - this._playableRegionStartTime)
+	      }]);
+	      if (this.el.currentTime >= buffered[i].start && this.el.currentTime <= buffered[i].end) {
 	        bufferedPos = i;
-	        break;
 	      }
 	    }
-	    this.trigger(_events2.default.PLAYBACK_PROGRESS, {
-	      // for a stream with sliding window dvr something that is buffered my slide off the start of the timeline
-	      start: Math.max(0, this.el.buffered.start(bufferedPos) - this._playableRegionStartTime),
-	      current: Math.max(0, this.el.buffered.end(bufferedPos) - this._playableRegionStartTime),
+	    var progress = {
+	      start: buffered[bufferedPos].start,
+	      current: buffered[bufferedPos].end,
 	      total: this.getDuration()
-	    });
+	    };
+	    this.trigger(_events2.default.PLAYBACK_PROGRESS, progress, buffered);
 	  };
 
 	  HLS.prototype.play = function play() {
@@ -25962,7 +26000,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	      this.listenTo(this.container, _events2.default.CONTAINER_ENDED, this.onEnded);
 	      this.listenTo(this.container, _events2.default.CONTAINER_STATE_BUFFERING, this.onBuffering);
 	      this.listenTo(this.container, _events2.default.CONTAINER_STATE_BUFFERFULL, this.onBufferFull);
-	      this.listenTo(this.container, _events2.default.CONTAINER_ENDED, this.onEnded);
 	      this.listenTo(this.container, _events2.default.CONTAINER_ERROR, this.onError);
 	      this.listenTo(this.container, _events2.default.CONTAINER_PLAYBACKSTATE, this.onPlaybackChanged);
 	      this.listenTo(this.container, _events2.default.CONTAINER_VOLUME, function (event) {
@@ -26230,7 +26267,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var _this = _possibleConstructorReturn(this, _UICorePlugin.call(this, core));
 
-	    _this.core = core;
 	    _this.settingsUpdate();
 	    return _this;
 	  }
@@ -26340,7 +26376,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  function UICorePlugin(core) {
 	    _classCallCheck(this, UICorePlugin);
 
-	    var _this = _possibleConstructorReturn(this, _UIObject.call(this, core));
+	    var _this = _possibleConstructorReturn(this, _UIObject.call(this, core.options));
 
 	    _this.core = core;
 	    _this.enabled = true;
@@ -26600,7 +26636,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  function CorePlugin(core) {
 	    _classCallCheck(this, CorePlugin);
 
-	    var _this = _possibleConstructorReturn(this, _BaseObject.call(this, core));
+	    var _this = _possibleConstructorReturn(this, _BaseObject.call(this, core.options));
 
 	    _this.core = core;
 	    _this.enabled = true;
