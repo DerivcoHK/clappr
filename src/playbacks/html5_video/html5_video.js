@@ -108,7 +108,6 @@ export default class HTML5Video extends Playback {
 
     $.extend(this.el, {
       loop: this.options.loop,
-      autoplay: this.options.autoPlay,
       poster: this.options.poster,
       preload: preload || 'metadata',
       controls: (playbackConfig.controls || this.options.useVideoTagDefaultControls) && 'controls',
@@ -121,6 +120,9 @@ export default class HTML5Video extends Playback {
     this.settings = {default: ['seekbar']}
     this.settings.left = ['playpause', 'position', 'duration']
     this.settings.right = ['fullscreen', 'volume', 'hd-indicator']
+
+    // https://github.com/clappr/clappr/issues/1076
+    this.options.autoPlay && this.play()
   }
 
   /**
@@ -359,18 +361,20 @@ export default class HTML5Video extends Playback {
     if (!this.el.buffered.length) {
       return
     }
-    var bufferedPos = 0
-    for (var i = 0;  i < this.el.buffered.length; i++) {
-      if (this.el.currentTime >= this.el.buffered.start(i) && this.el.currentTime <= this.el.buffered.end(i)) {
+    let buffered = []
+    let bufferedPos = 0
+    for (let i = 0;  i < this.el.buffered.length; i++) {
+      buffered = [...buffered, {start: this.el.buffered.start(i), end: this.el.buffered.end(i)}]
+      if (this.el.currentTime >= buffered[i].start && this.el.currentTime <= buffered[i].end) {
         bufferedPos = i
-        break
       }
     }
-    this.trigger(Events.PLAYBACK_PROGRESS, {
-      start: this.el.buffered.start(bufferedPos),
-      current: this.el.buffered.end(bufferedPos),
+    const progress = {
+      start: buffered[bufferedPos].start,
+      current: buffered[bufferedPos].end,
       total: this.el.duration
-    })
+    }
+    this.trigger(Events.PLAYBACK_PROGRESS, progress, buffered)
   }
 
   _typeFor(src) {
