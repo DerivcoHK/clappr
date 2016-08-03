@@ -39,7 +39,7 @@ describe('HTML5Video playback', function() {
   })
 
   it('triggers PLAYBACK_PLAY_INTENT on play request', function() {
-    var thereWasPlayIntent = false
+    let thereWasPlayIntent = false
     const playback = new HTML5Video(this.options)
 
     playback.on(Events.PLAYBACK_PLAY_INTENT, function() {
@@ -83,7 +83,7 @@ describe('HTML5Video playback', function() {
       currentTime = 0
       start = [0]
       end = [30]
-      let fakeEl = {
+      const fakeEl = {
         get currentTime() { return currentTime },
         get duration() { return duration },
         get buffered() { return {start: (i) => start[i], end: (i) => end[i], get length() { return start.length }} }
@@ -130,6 +130,37 @@ describe('HTML5Video playback', function() {
     })
   })
 
+  it('should be able to identify it can play resources independently of the file extension case', function() {
+    expect(HTML5Video.canPlay('/relative/video.ogg')).to.be.true
+    expect(HTML5Video.canPlay('/relative/VIDEO.OGG')).to.be.true
+  })
+
+  describe('options', function() {
+    it('should use the playback object within player options', function() {
+      const options = {
+        src: 'http://example.com/video.m3u8',
+        nonPlaybackOption: false,
+        playback: {
+          somePlaybackOption: true
+        }
+      }
+      const html5Video = new HTML5Video(options)
+      expect(html5Video.options.playback.somePlaybackOption).to.be.true
+      expect(html5Video.options.playback).not.to.include.keys('nonPlaybackOption')
+    })
+
+    it('should use hlsjsConfig from player options as fallback', function() {
+      const options = {
+        src: 'http://example.com/video.m3u8',
+        nonPlaybackOption: false,
+        somePlaybackOption: true
+      }
+      const html5Video = new HTML5Video(options)
+      expect(html5Video.options.playback.somePlaybackOption).to.be.true
+      expect(html5Video.options.playback.nonPlaybackOption).to.be.false
+    })
+  })
+
   describe('audio resources', function() {
     it('should be able to play audio resources', function() {
       expect(HTML5Video.canPlay('http://domain.com/Audio.oga')).to.be.true
@@ -150,6 +181,25 @@ describe('HTML5Video playback', function() {
         playback: { audioOnly: true }
       }
       const playback = new HTML5Video(options)
+      expect(playback.tagName).to.be.equal('audio')
+    })
+
+    it('should not play video resources on an audio tag if audioOnly flag is not set and a video mime-type is set', function() {
+      const options = { src: 'http://example.com/video.mp4', mimeType: 'video/mp4' }
+      const playback = new HTML5Video(options)
+      expect(playback.isAudioOnly).to.be.false
+      expect(playback.tagName).to.be.equal('video')
+    })
+
+    it('should play on audio tag if audioOnly flag is not set and the mime-type specified is audio only', function() {
+      let options = { src: 'http://example.com/audio?some_parameter=value', mimeType: 'audio/ogg' },
+        playback = new HTML5Video(options)
+      expect(playback.isAudioOnly).to.be.true
+      expect(playback.tagName).to.be.equal('audio')
+
+      options = { src: 'http://example.com/audio?some_parameter=value', mimeType: 'audio/wav' }
+      playback = new HTML5Video(options)
+      expect(playback.isAudioOnly).to.be.true
       expect(playback.tagName).to.be.equal('audio')
     })
 

@@ -44,12 +44,24 @@ describe('Poster', function() {
     expect(this.container.disableMediaControl).called.once
     expect(this.poster.showPlayButton).called.once
 
-    var spy = sinon.spy(this.poster, 'onStop')
+    const spy = sinon.spy(this.poster, 'onStop')
     this.poster.bindEvents()
 
     this.container.trigger(Events.CONTAINER_STOP)
 
     expect(spy).called.once
+  })
+
+  it('disables handling container:ended event as container:stop', function() {
+    this.container = new Container({playback: this.playback, poster: {showOnVideoEnd: false}})
+    this.poster = new Poster(this.container)
+    this.container.addPlugin(this.poster)
+    sinon.spy(this.container, 'disableMediaControl')
+    sinon.spy(this.poster, 'showPlayButton')
+    this.container.trigger(Events.CONTAINER_ENDED)
+
+    expect(this.container.disableMediaControl).not.called
+    expect(this.poster.showPlayButton).not.called
   })
 
   it('plays the container on click', function() {
@@ -67,7 +79,7 @@ describe('Poster', function() {
 
     // HLS audio-only needs overridden manually via config
     this.playback.name = 'html5_video'
-    this.poster.options.audioOnly = true
+    this.playback.isAudioOnly = true
     expect(this.poster.shouldHideOnPlay()).to.equal(false)
   })
 
