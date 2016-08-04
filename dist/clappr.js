@@ -3225,6 +3225,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    _this.firstResize = true;
 	    _this.plugins = [];
 	    _this.containers = [];
+	    _this.isValidContainer = false;
 	    _this.setupMediaControl(null);
 	    //FIXME fullscreen api sucks
 	    _this._boundFullscreenHandler = function () {
@@ -3341,16 +3342,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	  Core.prototype.load = function load(sources, mimeType) {
 	    var _this5 = this;
 
+	    var hlsLength = 25; // hardcode, the number of function in mse player
+	    var html5VideoLength = 14; //hardcode, the number of function in html5 player
 	    this.options.mimeType = mimeType;
 	    sources = sources && sources.constructor === Array ? sources : [sources];
-	    this.containers.forEach(function (container) {
-	      return container.destroy();
-	    });
-	    this.mediaControl.container = null;
-	    this.containerFactory.options = _clapprZepto2.default.extend(this.options, { sources: sources });
-	    this.containerFactory.createContainers().then(function (containers) {
-	      _this5.setupContainers(containers);
-	    });
+	    if (this.isValidContainer) {
+	      this.containers.forEach(function (container) {
+	        return container.destroy();
+	      });
+	      this.mediaControl.container = null;
+	      this.containerFactory.options = _clapprZepto2.default.extend(this.options, { sources: sources });
+	      this.containerFactory.createContainers().then(function (containers) {
+	        var playerFuncLength = Object.keys(containers[0].playback).length;
+	        if (_browser2.default.isMobile && html5VideoLength === playerFuncLength) {
+	          _this5.isValidContainer = true;
+	        } else if (!_browser2.default.isMobile && hlsLength === playerFuncLength) {
+	          _this5.isValidContainer = true;
+	        }
+	        _this5.setupContainers(containers);
+	      });
+	    } else {
+	      this.containers[0].playback.el.src = sources[0];
+	    }
 	  };
 
 	  Core.prototype.destroy = function destroy() {

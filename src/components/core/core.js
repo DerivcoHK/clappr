@@ -66,6 +66,7 @@ export default class Core extends UIObject {
     this.firstResize = true
     this.plugins = []
     this.containers = []
+    this.isValidContainer = false
     this.setupMediaControl(null)
     //FIXME fullscreen api sucks
     this._boundFullscreenHandler = () => this.handleFullscreenChange()
@@ -169,14 +170,28 @@ export default class Core extends UIObject {
   }
 
   load(sources, mimeType) {
+    var hlsLength = 25; // hardcode, the number of function in mse player
+    var html5VideoLength = 14; //hardcode, the number of function in html5 player
     this.options.mimeType = mimeType
     sources = sources && sources.constructor === Array ? sources : [sources]
-    this.containers.forEach((container) => container.destroy())
-    this.mediaControl.container = null
-    this.containerFactory.options = $.extend(this.options, {sources})
-    this.containerFactory.createContainers().then((containers) => {
-      this.setupContainers(containers)
-    })
+    if (this.isValidContainer) {
+      this.containers.forEach((container) => container.destroy())
+      this.mediaControl.container = null
+      this.containerFactory.options = $.extend(this.options, {sources})
+      this.containerFactory.createContainers().then((containers) => {
+        var playerFuncLength = Object.keys(containers[0].playback).length;
+        if (Browser.isMobile && html5VideoLength === playerFuncLength) {
+          this.isValidContainer = true;
+        }
+        else if (!Browser.isMobile && hlsLength === playerFuncLength) {
+          this.isValidContainer = true;
+        }
+        this.setupContainers(containers)
+      })
+    }
+    else {
+      this.containers[0].playback.el.src = sources[0];
+    }
   }
 
   destroy() {
