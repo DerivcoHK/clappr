@@ -174,13 +174,14 @@ export default class Core extends UIObject {
     var html5VideoLength = 14; //hardcode, the number of function in html5 player
     this.options.mimeType = mimeType
     sources = sources && sources.constructor === Array ? sources : [sources]
-    if (this.isValidContainer) {
+    if (!this.isValidContainer) {
       this.containers.forEach((container) => container.destroy())
       this.mediaControl.container = null
       this.containerFactory.options = $.extend(this.options, {sources})
       this.containerFactory.createContainers().then((containers) => {
         var playerFuncLength = Object.keys(containers[0].playback).length;
-        if (Browser.isMobile && html5VideoLength === playerFuncLength) {
+        var isM3u8 = containers[0].playback.el.src.indexOf('.m3u8') !== -1;
+        if (Browser.isMobile && html5VideoLength === playerFuncLength && isM3u8) {
           this.isValidContainer = true;
         }
         else if (!Browser.isMobile && hlsLength === playerFuncLength) {

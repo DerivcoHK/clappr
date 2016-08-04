@@ -3346,7 +3346,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var html5VideoLength = 14; //hardcode, the number of function in html5 player
 	    this.options.mimeType = mimeType;
 	    sources = sources && sources.constructor === Array ? sources : [sources];
-	    if (this.isValidContainer) {
+	    if (!this.isValidContainer) {
 	      this.containers.forEach(function (container) {
 	        return container.destroy();
 	      });
@@ -3354,7 +3354,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      this.containerFactory.options = _clapprZepto2.default.extend(this.options, { sources: sources });
 	      this.containerFactory.createContainers().then(function (containers) {
 	        var playerFuncLength = Object.keys(containers[0].playback).length;
-	        if (_browser2.default.isMobile && html5VideoLength === playerFuncLength) {
+	        var isM3u8 = containers[0].playback.el.src.indexOf('.m3u8') !== -1;
+	        if (_browser2.default.isMobile && html5VideoLength === playerFuncLength && isM3u8) {
 	          _this5.isValidContainer = true;
 	        } else if (!_browser2.default.isMobile && hlsLength === playerFuncLength) {
 	          _this5.isValidContainer = true;
