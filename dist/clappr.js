@@ -3344,6 +3344,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    var hlsLength = 25; // hardcode, the number of function in mse player
 	    var html5VideoLength = 14; //hardcode, the number of function in html5 player
+	    var isMobile = this.options.isMobile; // new props, for force keep video dom without replacement
 	    this.options.mimeType = mimeType;
 	    sources = sources && sources.constructor === Array ? sources : [sources];
 	    if (!this.isValidContainer) {
@@ -3354,16 +3355,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	      this.containerFactory.options = _clapprZepto2.default.extend(this.options, { sources: sources });
 	      this.containerFactory.createContainers().then(function (containers) {
 	        var playerFuncLength = Object.keys(containers[0].playback).length;
-	        var isM3u8 = containers[0].playback.el.src.indexOf('.m3u8') !== -1;
-	        if (_browser2.default.isMobile && html5VideoLength === playerFuncLength && isM3u8) {
-	          _this5.isValidContainer = true;
-	        } else if (!_browser2.default.isMobile && hlsLength === playerFuncLength) {
+	        if (isMobile && html5VideoLength === playerFuncLength) {
 	          _this5.isValidContainer = true;
 	        }
 	        _this5.setupContainers(containers);
 	      });
 	    } else {
-	      this.containers[0].playback.el.src = sources[0];
+	      var videoDom = this.containers[0].playback.el;
+	      var sourceDom = document.createElement('source');
+	      sourceDom.setAttribute('src', sources[0]);
+	      videoDom.src = sources[0];
 	    }
 	  };
 
