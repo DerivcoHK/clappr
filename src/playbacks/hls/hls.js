@@ -339,6 +339,10 @@ export default class HLS extends HTML5VideoPlayback {
 
   destroy() {
     this._stopTimeUpdateTimer()
+    if (this._hls) {
+      this._hls.destroy()
+      delete this._hls
+    }
     super.destroy()
   }
 
@@ -350,8 +354,8 @@ export default class HLS extends HTML5VideoPlayback {
 
   _fillLevels() {
     this._levels = this._hls.levels.map((level, index) => {
-      return {id: index, level: level, label: `${level.bitrate/1000}Kbps`
-    }})
+      return {id: index, level: level, label: `${level.bitrate/1000}Kbps`}
+    })
     this.trigger(Events.PLAYBACK_LEVELS_AVAILABLE, this._levels)
   }
 
@@ -502,7 +506,7 @@ export default class HLS extends HTML5VideoPlayback {
       this.trigger(Events.PLAYBACK_BITRATE, {
         height: currentLevel.height,
         width: currentLevel.width,
-        bandwidth: currentLevel.bandwidth,
+        bandwidth: currentLevel.bitrate,
         bitrate: currentLevel.bitrate,
         level: data.level
       })

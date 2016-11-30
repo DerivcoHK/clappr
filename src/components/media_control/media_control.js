@@ -34,6 +34,7 @@ import hdIcon from 'icons/08-hd.svg'
 
 export default class MediaControl extends UIObject {
   get name() { return 'MediaControl' }
+  get disabled() { return this.userDisabled || (this.container && this.container.getPlaybackType() === Playback.NO_OP)}
 
   get attributes() {
     return {
@@ -97,7 +98,7 @@ export default class MediaControl extends UIObject {
       this.settings = {}
     }
 
-    this.disabled = false
+    this.userDisabled = false
     if ((this.container && this.container.mediaControlDisabled) || this.options.chromeless) {
       this.disable()
     }
@@ -130,14 +131,14 @@ export default class MediaControl extends UIObject {
   }
 
   disable() {
-    this.disabled = true
+    this.userDisabled = true
     this.hide()
     this.$el.hide()
   }
 
   enable() {
     if (this.options.chromeless) return
-    this.disabled = false
+    this.userDisabled = false
     this.show()
   }
 
@@ -207,13 +208,16 @@ export default class MediaControl extends UIObject {
       this.$playPauseToggle.append(playIcon)
       this.$playStopToggle.append(playIcon)
       this.trigger(Events.MEDIACONTROL_NOTPLAYING)
+      if (Browser.isMobile) {
+        this.show()
+      }
     }
     this.applyButtonStyle(this.$playPauseToggle)
     this.applyButtonStyle(this.$playStopToggle)
   }
 
   mousemoveOnSeekBar(event) {
-    if (this.container.settings.seekEnabled) {
+    if (this.settings.seekEnabled) {
       const offsetX = event.pageX - this.$seekBarContainer.offset().left - (this.$seekBarHover.width() / 2)
       this.$seekBarHover.css({left: offsetX})
     }
@@ -266,7 +270,7 @@ export default class MediaControl extends UIObject {
   }
 
   startSeekDrag(event) {
-    if (!this.container.settings.seekEnabled) return
+    if (!this.settings.seekEnabled) return
     this.draggingSeekBar = true
     this.$el.addClass('dragging')
     this.$seekBarLoaded.addClass('media-control-notransition')
@@ -436,7 +440,7 @@ export default class MediaControl extends UIObject {
   }
 
   seek(event) {
-    if (!this.container.settings.seekEnabled) return
+    if (!this.settings.seekEnabled) return
     const offsetX = event.pageX - this.$seekBarContainer.offset().left
     let pos = offsetX / this.$seekBarContainer.width() * 100
     pos = Math.min(100, Math.max(pos, 0))
@@ -466,7 +470,9 @@ export default class MediaControl extends UIObject {
   }
 
   show(event) {
-    if (this.disabled) return
+    if (this.disabled) {
+      return
+    }
     const timeout = 2000
     if (!event || (event.clientX !== this.lastMouseX && event.clientY !== this.lastMouseY) || navigator.userAgent.match(/firefox/i)) {
       clearTimeout(this.hideId)
@@ -482,10 +488,15 @@ export default class MediaControl extends UIObject {
   }
 
   hide(delay = 0) {
+    if (!this.isVisible() || (Browser.isMobile && !this.container.isPlaying())) {
+      return
+    }
     const timeout = delay || 2000
     clearTimeout(this.hideId)
-    if (!this.isVisible() || this.options.hideMediaControl === false) return
-    if (delay || this.userKeepVisible || this.keepVisible || this.draggingSeekBar || this.draggingVolumeBar) {
+    if (!this.disabled && this.options.hideMediaControl === false) {
+      return
+    }
+    if (!this.disabled && (delay || this.userKeepVisible || this.keepVisible || this.draggingSeekBar || this.draggingVolumeBar)) {
       this.hideId = setTimeout(() => this.hide(), timeout)
     } else {
       this.trigger(Events.MEDIACONTROL_HIDE, this.name)
@@ -495,7 +506,7 @@ export default class MediaControl extends UIObject {
   }
 
   settingsUpdate() {
-    const newSettings = merge({}, this.container.settings)
+    const newSettings = this.getSettings()
     if (newSettings && !this.fullScreenOnVideoTagSupported && !Fullscreen.fullscreenEnabled()) {
       // remove fullscreen from settings if it is present
       newSettings.default && removeArrayItem(newSettings.default, 'fullscreen')
@@ -503,10 +514,14 @@ export default class MediaControl extends UIObject {
       newSettings.right && removeArrayItem(newSettings.right, 'fullscreen')
     }
     const settingsChanged = JSON.stringify(this.settings) !== JSON.stringify(newSettings)
-    if (this.container.getPlaybackType() && settingsChanged) {
+    if (settingsChanged) {
       this.settings = newSettings
       this.render()
     }
+  }
+
+  getSettings() {
+    return merge({}, this.container.settings)
   }
 
   highDefinitionUpdate(isHD) {
@@ -569,7 +584,7 @@ export default class MediaControl extends UIObject {
   }
 
   seekRelative(delta) {
-    if (!this.container.settings.seekEnabled) return
+    if (!this.settings.seekEnabled) return
     const currentTime = this.container.getCurrentTime()
     const duration = this.container.getDuration()
     let position = Math.min(Math.max(currentTime + delta, 0), duration)
@@ -584,7 +599,7 @@ export default class MediaControl extends UIObject {
     this.kibo.down(['left'], () => this.seekRelative(-15))
     this.kibo.down(['right'], () => this.seekRelative(15))
     const keys = [1,2,3,4,5,6,7,8,9,0]
-    keys.forEach((i) => { this.kibo.down(i.toString(), () => this.container.settings.seekEnabled && this.container.seekPercentage(i * 10)) })
+    keys.forEach((i) => { this.kibo.down(i.toString(), () => this.settings.seekEnabled && this.container.seekPercentage(i * 10)) })
   }
 
   unbindKeyEvents() {
@@ -648,7 +663,7 @@ export default class MediaControl extends UIObject {
     this.setSeekPercentage(previousSeekPercentage)
 
     process.nextTick(() => {
-      if (!this.container.settings.seekEnabled) {
+      if (!this.settings.seekEnabled) {
         this.$seekBarContainer.addClass('seek-disabled')
       }
       if (!this.options.disableKeyboardShortcuts) {

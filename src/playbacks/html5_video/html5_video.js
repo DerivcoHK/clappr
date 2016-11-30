@@ -5,13 +5,10 @@
 import {seekStringToSeconds} from 'base/utils'
 
 import Playback from 'base/playback'
-import template from 'base/template'
 import Styler from 'base/styler'
 import Browser from 'components/browser'
 import Events from 'base/events'
 import tagStyle from './public/style.scss'
-import sourceHTML from './public/index.html'
-import find from 'lodash.find'
 import $ from 'clappr-zepto'
 
 const MIMETYPES = {
@@ -39,7 +36,6 @@ const KNOWN_AUDIO_MIMETYPES = Object.keys(AUDIO_MIMETYPES).reduce((acc, k) => [.
 export default class HTML5Video extends Playback {
   get name() { return 'html5_video' }
   get tagName() { return this.isAudioOnly ? 'audio' : 'video' }
-  get template() { return template(sourceHTML) }
 
   get isAudioOnly() {
     const resourceUrl = this.options.src
@@ -96,6 +92,7 @@ export default class HTML5Video extends Playback {
 
   constructor(...args) {
     super(...args)
+    this._destroyed = false
     this._loadStarted = false
     this._playheadMoving = false
     this._playheadMovingTimer = null
@@ -123,7 +120,7 @@ export default class HTML5Video extends Playback {
     this.settings.right = ['fullscreen', 'volume', 'hd-indicator']
 
     // https://github.com/clappr/clappr/issues/1076
-    this.options.autoPlay && process.nextTick(() => this.play())
+    this.options.autoPlay && process.nextTick(() => !this._destroyed && this.play())
   }
 
   /**
@@ -133,6 +130,9 @@ export default class HTML5Video extends Playback {
    * @param {String} srcUrl The source URL.
    */
   _setupSrc(srcUrl) {
+    if (this.el.src === srcUrl) {
+      return
+    }
     this._src = srcUrl
     this.el.src = srcUrl
   }
@@ -182,6 +182,7 @@ export default class HTML5Video extends Playback {
   play() {
     this.trigger(Events.PLAYBACK_PLAY_INTENT)
     this._stopped = false
+    this._setupSrc(this._src)
     this._handleBufferingEvents()
     this.el.play()
   }
@@ -193,6 +194,8 @@ export default class HTML5Video extends Playback {
   stop() {
     this.pause()
     this._stopped = true
+    // src will be added again in play()
+    this.el.removeAttribute('src')
     try {
       this.el.currentTime = 0
     }
@@ -323,6 +326,7 @@ export default class HTML5Video extends Playback {
   }
 
   destroy() {
+    this._destroyed = true
     this.$el.remove()
     this.el.src = ''
     this._src = null
@@ -401,8 +405,6 @@ export default class HTML5Video extends Playback {
   render() {
     const style = Styler.getStyleFor(tagStyle)
 
-    this._src && this.$el.html(this.template({ src: this._src, type: this.options.mimeType || this._typeFor(this._src) }))
-
     if (this.options.playback.disableContextMenu) {
       this.$el.on('contextmenu', () => {
         return false
@@ -424,7 +426,7 @@ HTML5Video._mimeTypesForUrl = function(resourceUrl, mimeTypesByExtension, mimeTy
 HTML5Video._canPlay = function(type, mimeTypesByExtension, resourceUrl, mimeType) {
   let mimeTypes = HTML5Video._mimeTypesForUrl(resourceUrl, mimeTypesByExtension, mimeType)
   const media = document.createElement(type)
-  return !!find(mimeTypes, (mediaType) => !!media.canPlayType(mediaType).replace(/no/, ''))
+  return !!(mimeTypes.filter(mediaType => !!media.canPlayType(mediaType).replace(/no/, ''))[0])
 }
 
 HTML5Video.canPlay = function(resourceUrl, mimeType) {
