@@ -123,7 +123,7 @@ export default class HTML5Video extends Playback {
     this.settings.right = ['fullscreen', 'volume', 'hd-indicator']
 
     // https://github.com/clappr/clappr/issues/1076
-    this.options.autoPlay && this.play()
+    this.options.autoPlay && process.nextTick(() => this.play())
   }
 
   /**
@@ -382,9 +382,12 @@ export default class HTML5Video extends Playback {
   }
 
   _typeFor(src) {
-    const resourceParts = src.split('?')[0].match(/.*\.(.*)$/) || []
-    const isHls = resourceParts.length > 1 && resourceParts[1] === 'm3u8'
-    return isHls ? 'application/vnd.apple.mpegurl' : 'video/mp4'
+    let mimeTypes = HTML5Video._mimeTypesForUrl(src, MIMETYPES, this.options.mimeType)
+    if (mimeTypes.length == 0) {
+      mimeTypes = HTML5Video._mimeTypesForUrl(src, AUDIO_MIMETYPES, this.options.mimeType)
+    }
+    const mimeType = mimeTypes[0] || ''
+    return mimeType.split(';')[0]
   }
 
   _ready() {
@@ -398,7 +401,7 @@ export default class HTML5Video extends Playback {
   render() {
     const style = Styler.getStyleFor(tagStyle)
 
-    this._src && this.$el.html(this.template({ src: this._src, type: this._typeFor(this._src) }))
+    this._src && this.$el.html(this.template({ src: this._src, type: this.options.mimeType || this._typeFor(this._src) }))
 
     if (this.options.playback.disableContextMenu) {
       this.$el.on('contextmenu', () => {

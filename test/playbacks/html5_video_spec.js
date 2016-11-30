@@ -51,9 +51,12 @@ describe('HTML5Video playback', function() {
     expect(thereWasPlayIntent).to.be.true
   })
 
-  it('isPlaying() is true immediately when autoPlay is true', function() {
+  it('isPlaying() is true after constructor when autoPlay is true', function(done) {
     const playback = new HTML5Video({src: 'http://example.com/dash.ogg', autoPlay: true})
-    expect(playback.isPlaying()).to.be.true
+    process.nextTick(function(){
+      expect(playback.isPlaying()).to.be.true
+      done()
+    })
   })
 
   it('setup crossorigin attribute', function() {
@@ -158,6 +161,40 @@ describe('HTML5Video playback', function() {
       const html5Video = new HTML5Video(options)
       expect(html5Video.options.playback.somePlaybackOption).to.be.true
       expect(html5Video.options.playback.nonPlaybackOption).to.be.false
+    })
+  })
+
+  describe('sources', function() {
+    it('should set up source tag with values from options', function() {
+      const options = {
+        src: 'http://example.com/some_source?query_string=here',
+        mimeType: 'application/x-mpegURL'
+      }
+      const html5Video = new HTML5Video(options)
+      html5Video.render()
+      const sourceEl = html5Video.$el.find('source')[0]
+      expect(sourceEl.src).to.be.equal(options.src)
+      expect(sourceEl.type).to.be.equal(options.mimeType)
+    })
+
+    it('should set up source tag with inferred values when not set by options', function() {
+      const options = {
+        src: 'http://example.com/video.mp4'
+      }
+      const html5Video = new HTML5Video(options)
+      html5Video.render()
+      const sourceEl = html5Video.$el.find('source')[0]
+      expect(sourceEl.src).to.be.equal(options.src)
+      expect(sourceEl.type).to.be.equal('video/mp4')
+    })
+
+    it('should set up source tag with value extracted from url when mimeType parameter is not set', function() {
+      const options = {src: 'http://example.com/video.m3u8'}
+      const html5Video = new HTML5Video(options)
+      html5Video.render()
+      const sourceEl = html5Video.$el.find('source')[0]
+      expect(sourceEl.src).to.be.equal(options.src)
+      expect(sourceEl.type).to.be.equal('application/x-mpegurl')
     })
   })
 
